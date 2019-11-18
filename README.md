@@ -1,2 +1,2 @@
 # MoMoCapture
-Motion and Movement data capture using a mobile app
+A mobile app to capture motion and movement
