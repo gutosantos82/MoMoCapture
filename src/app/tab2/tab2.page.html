@@ -1,0 +1,66 @@
+<ion-header>
+  <ion-toolbar>
+    <ion-title>
+      Tab Two
+    </ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content>
+
+	<ion-list class="ion-text-center">
+	  <ion-row responsive-sm [hidden]="captureOn">
+	    <ion-col>
+	      <ion-button (click)="startCapture($event)" [disabled]="captureOn" color="dark" size="large">Start Capture</ion-button>
+	    </ion-col>
+	  </ion-row>
+	  <ion-row responsive-sm [hidden]="captureOn">
+	    <ion-col>
+	      <ion-button (click)="getGeolocation($event)" color="primary">Get Geolocation</ion-button>
+	    </ion-col>
+	  </ion-row>
+	  <ion-row responsive-sm [hidden]="!captureOn">
+	    <ion-col>
+	      <ion-button (click)="stopCapture($event)" color="danger" size="large">Stop</ion-button>
+	    </ion-col>
+	  </ion-row>
+	  <ion-row responsive-sm [hidden]="!captureOn">
+	    <ion-col>
+	      <ion-button (click)="moveToBackground($event)" color="primary">Move to Background</ion-button>
+	    </ion-col>
+	  </ion-row>
+
+	  <ion-row responsive-sm [hidden]="!captureOn">
+	    <ion-col>
+			<h2>
+				General
+			</h2>
+				interval: {{general.interval}}<br/>
+				freq: {{readFrequency}}<br/>
+				time: {{general.time}}<br/>
+				countMotion: {{countMotionReading}}<br/>
+				countGPS: {{countGPSReading}}<br/>
+			<h2 [hidden]="!hasDeviceMotion">
+				Acceleration
+			</h2>
+				x: {{acc.x}}<br/>
+				y: {{acc.y}}<br/>
+				z: {{acc.z}}<br/>
+			<h2 [hidden]="!hasDeviceMotion">
+				Rotation
+			</h2>
+				x: {{rot.alpha}}<br/>
+				y: {{rot.beta}}<br/>
+				z: {{rot.gamma}}<br/>
+			<h2>
+				GeoLocation
+			</h2>
+				lat: {{geo.lat}}<br/>
+				long: {{geo.long}}<br/>
+				accuracy: {{geo.accuracy}}<br/>
+	    </ion-col>
+	  </ion-row>
+
+	</ion-list>
+
+</ion-content>

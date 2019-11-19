@@ -1,0 +1,7 @@
+{
+  "name": "MoMoCapture",
+  "integrations": {
+    "cordova": {}
+  },
+  "type": "angular"
+}
