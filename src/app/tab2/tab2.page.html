@@ -16,7 +16,43 @@
 	  </ion-row>
 	  <ion-row responsive-sm [hidden]="captureOn">
 	    <ion-col>
-	      <ion-button (click)="getGeolocation($event)" color="primary">Get Geolocation</ion-button>
+	      <ion-button (click)="getGeolocation($event)" color="primary">Check Geolocation</ion-button>
+	    </ion-col>
+	  </ion-row>
+	  <ion-row responsive-sm [hidden]="captureOn">
+	    <ion-col>
+	      <ion-list>
+	      	<ion-row>
+	      		<ion-col>Sensor</ion-col><ion-col>Available</ion-col><ion-col>Will Send</ion-col>	      		
+	      	</ion-row>
+	      	<ion-row>
+	      		<ion-col>Accelerometer</ion-col>
+	      		<ion-col>
+	      			<ion-icon name="checkmark" class="check-true" [hidden]="!hasAccelerometer"></ion-icon>
+	      			<ion-icon name="close" class="check-false" [hidden]="hasAccelerometer" size="large"></ion-icon>
+	      		</ion-col>
+	      		<ion-col><ion-toggle [checked]="hasAccelerometer" ></ion-toggle>
+	      		</ion-col>
+	      	</ion-row>
+	      	<ion-row>
+	      		<ion-col>Gyroscope</ion-col>
+	      		<ion-col>
+	      			<ion-icon name="checkmark" class="check-true" [hidden]="!hasGyroscope"></ion-icon>
+	      			<ion-icon name="close" class="check-false" [hidden]="hasGyroscope" size="large"></ion-icon>
+	      		</ion-col>
+	      		<ion-col><ion-toggle [checked]="hasGyroscope" ></ion-toggle>
+	      		</ion-col>
+	      	</ion-row>
+	      	<ion-row>
+	      		<ion-col>Geolocation</ion-col>
+	      		<ion-col>
+	      			<ion-icon name="checkmark" class="check-true" [hidden]="!hasGeolocation"></ion-icon>
+	      			<ion-icon name="close" class="check-false" [hidden]="hasGeolocation" size="large"></ion-icon>
+	      		</ion-col>
+	      		<ion-col><ion-toggle [checked]="hasGeolocation" ></ion-toggle>
+	      		</ion-col>
+	      	</ion-row>
+	      </ion-list>
 	    </ion-col>
 	  </ion-row>
 	  <ion-row responsive-sm [hidden]="!captureOn">

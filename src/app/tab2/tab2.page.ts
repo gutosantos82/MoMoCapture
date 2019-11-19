@@ -2,7 +2,13 @@ import { Component } from '@angular/core';
 import { Injectable, NgZone } from '@angular/core';
 import { Geolocation } from '@ionic-native/geolocation/ngx';
 import { BackgroundMode } from '@ionic-native/background-mode/ngx';
+import { NativeStorage } from '@ionic-native/native-storage/ngx';
+import { Platform } from '@ionic/angular';
+import { UUID } from 'angular2-uuid';
+
 import { Subscription } from "rxjs";
+import * as JSZip from "jszip";
+import { saveAs } from 'file-saver';
 
 
 export interface GeneralInfoType {
@@ -48,6 +54,7 @@ export interface DeviceMotionType {
 export class Tab2Page {
 
 	private docEvtDevMotion:EventListenerOrEventListenerObject = null;
+	private docEvtDevMotionAux:EventListenerOrEventListenerObject = null;
 	private geoSubscription: Subscription;
 	captureOn: boolean = false;
 	acc: AccelerationType = {x:0, y:0, z:0};
@@ -59,32 +66,77 @@ export class Tab2Page {
 	countMotionReading: number;
 	countGPSReading: number;
 	hasDeviceMotion: boolean = false;
+	hasAccelerometer: boolean = false;
+	hasGyroscope: boolean = false;
+	hasGeolocation: boolean = false;
 	deviceMotionList: DeviceMotionType[] = [];
 	geolocationList: GeolocationType[] = [];
+	uuid: string;
 
   constructor(
   	private zone: NgZone,
   	private geolocation: Geolocation,
-  	private backgroundMode: BackgroundMode
+  	private backgroundMode: BackgroundMode,
+  	private nativeStorage: NativeStorage,
+  	private platform: Platform
   	) {  	
     let self = this;
     this.docEvtDevMotion = (event: DeviceMotionEvent)=>{
         self.processEvent(event);
     }
+    this.docEvtDevMotionAux = (event: DeviceMotionEvent)=>{
+        self.checkDeviceMotion(event);
+    }
     let _window: any = window;
     if(_window.DeviceMotionEvent) {
     	this.hasDeviceMotion = true;
     }
+		if (this.platform.is('cordova')) {
+			this.nativeStorage.getItem('uuid')
+			  .then(
+			    data => this.uuid = data,
+			    error => console.error('Error retrieving item uuid', error)
+			  );
+		} else {
+			this.uuid = UUID.UUID();
+			//console.log(this.uuid);
+		}
   }
 
-processEvent(event: DeviceMotionEvent) {
-    //console.log(event);
+  ionViewDidEnter() {
+		if(this.hasDeviceMotion) {
+			window.addEventListener("devicemotion", this.docEvtDevMotionAux, false);
+		}
+	  // get current position
+	  this.geolocation.getCurrentPosition({ maximumAge: 3000, timeout: 5000, enableHighAccuracy: false }).then(pos => {
+	    this.hasGeolocation = true;
+	  }).catch((error) => {
+	      this.hasGeolocation = false;
+	  });;
+  }
+
+  checkDeviceMotion(event: DeviceMotionEvent) {
+		this.zone.run(() => {
+	    if(event.accelerationIncludingGravity.x) {
+		    this.hasAccelerometer = true;
+	  	}
+	  	if(event.rotationRate.alpha) {
+		    this.hasGyroscope = true;
+	  	}
+			if(this.hasDeviceMotion) {
+				window.removeEventListener("devicemotion", this.docEvtDevMotionAux, false);
+			}
+		});
+	}
+
+	processEvent(event: DeviceMotionEvent) {
+	  //console.log(event);
 		this.zone.run(() => {
 
 			var currentTime: number = new Date().getTime();
 			var timeDiff: number = currentTime - this.dateStart.getTime();
 			this.countMotionReading++;
-      this.readFrequency = parseFloat((1000 * this.countMotionReading / (timeDiff)).toFixed(4));
+	    this.readFrequency = parseFloat((1000 * this.countMotionReading / (timeDiff)).toFixed(4));
 
 	    this.general.interval = event.interval;
 	    this.general.time = parseFloat(event.timeStamp.toFixed(4));
@@ -112,27 +164,29 @@ processEvent(event: DeviceMotionEvent) {
 				  gamma: event.rotationRate.gamma
 	  	});
 
-  	});
-}
+		});
+	}
 
 
-startCapture(e: any) {
-		this.backgroundMode.enable();
-		this.backgroundMode.setDefaults({
-			title : 'App is running', 
-			text : 'Click here to turn it off',
-      icon: 'icon',
-      color: 'F14F4D', // hex format
-      resume: true,
-      hidden: false,
-      bigText: true,
-      // To run in background without notification
-      silent: false
-		});
-		this.backgroundMode.on("activate").subscribe(() => {
-   		this.backgroundMode.disableWebViewOptimizations(); 
-		});
-    this.captureOn = true;
+	startCapture(e: any) {
+		if (this.platform.is('cordova')) {
+			this.backgroundMode.enable();
+			this.backgroundMode.setDefaults({
+				title : 'App is running', 
+				text : 'Click here to turn it off',
+		    icon: 'icon',
+		    color: 'F14F4D', // hex format
+		    resume: true,
+		    hidden: false,
+		    bigText: true,
+		    // To run in background without notification
+		    silent: false
+			});
+			this.backgroundMode.on("activate").subscribe(() => {
+		 		this.backgroundMode.disableWebViewOptimizations(); 
+			});
+		}
+	  this.captureOn = true;
 		this.dateStart = new Date();
 		this.countMotionReading = 0;
 		this.countGPSReading = 0;
@@ -154,29 +208,60 @@ startCapture(e: any) {
 			 this.geolocationList.push(this.geo);
 		}, 
 		(error: PositionError) => console.log(error));
-  }
+	 }
 
-stopCapture(e: any) {
+	stopCapture(e: any) {
 		//window.removeEventListener("devicemotion",this.processEvent.bind(this), true);	
 		if(this.hasDeviceMotion) {
 			window.removeEventListener("devicemotion", this.docEvtDevMotion, false);
 		}
 		this.geoSubscription.unsubscribe();
 	  this.captureOn = false;
-	  this.backgroundMode.disable();
+	  if (this.platform.is('cordova')) {
+		  this.backgroundMode.disable();
+		}
+	  //this.sendFileHttp();
 	}
 
-moveToBackground(e: any) {
-		this.backgroundMode.moveToBackground();
+	moveToBackground(e: any) {
+		if (this.platform.is('cordova')) {
+			this.backgroundMode.moveToBackground();
+		}
 	}
 
-getGeolocation(e: any) {
-    // get current position
-    this.geolocation.getCurrentPosition({ maximumAge: 3000, timeout: 5000, enableHighAccuracy: false }).then(pos => {
-      alert('lat: ' + pos.coords.latitude + ', lon: ' + pos.coords.longitude);
-    }).catch((error) => {
-        alert(error);
-    });;
+	getGeolocation(e: any) {
+	  // get current position
+	  this.geolocation.getCurrentPosition({ maximumAge: 3000, timeout: 5000, enableHighAccuracy: false }).then(pos => {
+	    this.hasGeolocation = true;
+	    alert("Geolocation is on!");
+	    console.log('lat: ' + pos.coords.latitude + ', lon: ' + pos.coords.longitude);
+	  }).catch((error) => {
+	      this.hasGeolocation = false;
+	      alert("Geolocation is off!");
+	      console.log("getGeolocation: ",error);
+	  });;
+	}
+
+	arrayToCSV(array) {
+		const replacer = (key, value) => value === null ? '' : value; // specify how you want to handle null values here
+		const header = Object.keys(array[0]);
+		let csv = array.map(row => header.map(fieldName => JSON.stringify(row[fieldName], replacer)).join(','));
+		csv.unshift(header.join(','));
+		let csvString = csv.join('\r\n');
+		//console.log(csvString);
+		return(csvString);
+	}
+
+	sendFileHttp(){
+	   var zip = new JSZip();
+	    zip.file(this.uuid + '.deviceMotion.csv', this.arrayToCSV(this.deviceMotionList));
+	    zip.file(this.uuid + '.geoLocation.csv', this.arrayToCSV(this.geolocationList));
+
+		zip.generateAsync({type:"blob"}).then(function(content) {
+		    // see FileSaver.js
+		    saveAs(content, "data.zip");
+		});
+
 	}
 
 }
