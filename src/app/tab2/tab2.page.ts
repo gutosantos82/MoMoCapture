@@ -1,5 +1,6 @@
 import { Component } from '@angular/core';
 import { Injectable, NgZone } from '@angular/core';
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Geolocation } from '@ionic-native/geolocation/ngx';
 import { BackgroundMode } from '@ionic-native/background-mode/ngx';
 import { NativeStorage } from '@ionic-native/native-storage/ngx';
@@ -78,7 +79,8 @@ export class Tab2Page {
   	private geolocation: Geolocation,
   	private backgroundMode: BackgroundMode,
   	private nativeStorage: NativeStorage,
-  	private platform: Platform
+  	private platform: Platform,
+  	private http: HttpClient
   	) {  	
     let self = this;
     this.docEvtDevMotion = (event: DeviceMotionEvent)=>{
@@ -220,7 +222,7 @@ export class Tab2Page {
 	  if (this.platform.is('cordova')) {
 		  this.backgroundMode.disable();
 		}
-	  //this.sendFileHttp();
+	  this.sendFileHttp();
 	}
 
 	moveToBackground(e: any) {
@@ -252,15 +254,41 @@ export class Tab2Page {
 		return(csvString);
 	}
 
-	sendFileHttp(){
+	private async sendFileHttp(){
 	   var zip = new JSZip();
 	    zip.file(this.uuid + '.deviceMotion.csv', this.arrayToCSV(this.deviceMotionList));
 	    zip.file(this.uuid + '.geoLocation.csv', this.arrayToCSV(this.geolocationList));
 
-		zip.generateAsync({type:"blob"}).then(function(content) {
-		    // see FileSaver.js
-		    saveAs(content, "data.zip");
+		var zipFile = await zip.generateAsync({
+      base64: true,
+      compression: "DEFLATE",
+      type: "base64"
 		});
+		//.then(function(content) {
+		    // see FileSaver.js
+		    // saveAs(content, "data.zip");
+    var data = [];
+		data['answersAsMap[1996787].textAnswer'] = this.uuid;
+		data['answersAsMap[1996788].attachment.upload'] = zipFile;
+
+    var headers = new Headers();
+    headers.append('Content-Type', 'application/x-www-form-urlencoded');
+
+		const httpOptions = {
+		  headers: new HttpHeaders({
+		    'Content-Type':  'application/x-www-form-urlencoded'
+		  })
+		};
+
+    var query = '';
+    for (var key in data) {
+      query += '&' + encodeURIComponent(key) + '=' + encodeURIComponent(data[key]);
+    }
+    this.http.post('https://nettskjema.no/answer/deliver.json?formId=141510', query , httpOptions ).subscribe(
+	    (response) => console.log(response),
+	    (error) => console.log(error)
+			  )
+		//});
 
 	}
 

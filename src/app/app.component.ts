@@ -28,7 +28,7 @@ export class AppComponent {
         this.splashScreen.hide();
         this.nativeStorage.getItem('uuid')
           .then(
-            data => console.log(data),
+            data => console.log('Already stored item uuid:' + data),
             error => {
               //console.error(error)
               let uuid = UUID.UUID();
