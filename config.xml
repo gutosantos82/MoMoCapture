@@ -102,5 +102,8 @@
     <plugin name="cordova-plugin-geolocation" spec="^4.0.2" />
     <plugin name="cordova-plugin-background-mode" spec="^0.7.3" />
     <plugin name="cordova-plugin-nativestorage" spec="^2.3.2" />
+    <plugin name="cordova-plugin-advanced-http" spec="^2.4.1">
+        <variable name="OKHTTP_VERSION" value="3.10.0" />
+    </plugin>
     <engine name="android" spec="7.1.4" />
 </widget>

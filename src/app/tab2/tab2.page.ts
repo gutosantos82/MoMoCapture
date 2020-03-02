@@ -4,8 +4,10 @@ import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Geolocation } from '@ionic-native/geolocation/ngx';
 import { BackgroundMode } from '@ionic-native/background-mode/ngx';
 import { NativeStorage } from '@ionic-native/native-storage/ngx';
+import { HTTP } from '@ionic-native/http/ngx';
 import { Platform } from '@ionic/angular';
 import { UUID } from 'angular2-uuid';
+import { File, FileEntry } from '@ionic-native/file/ngx';
 
 import { Subscription } from "rxjs";
 import * as JSZip from "jszip";
@@ -47,6 +49,10 @@ export interface DeviceMotionType {
   gamma: number;
 }
 
+type requestMethod = "head" | "get" | "post" | "put" | "patch" | "delete" | "options" | "upload" | "download";
+
+declare const cordova: any;
+
 @Component({
   selector: 'app-tab2',
   templateUrl: 'tab2.page.html',
@@ -80,7 +86,9 @@ export class Tab2Page {
   	private backgroundMode: BackgroundMode,
   	private nativeStorage: NativeStorage,
   	private platform: Platform,
-  	private http: HttpClient
+  	private http: HttpClient,
+  	private httpNative: HTTP,
+  	private file: File
   	) {  	
     let self = this;
     this.docEvtDevMotion = (event: DeviceMotionEvent)=>{
@@ -257,38 +265,30 @@ export class Tab2Page {
 	private async sendFileHttp(){
 	   var zip = new JSZip();
 	    zip.file(this.uuid + '.deviceMotion.csv', this.arrayToCSV(this.deviceMotionList));
-	    zip.file(this.uuid + '.geoLocation.csv', this.arrayToCSV(this.geolocationList));
+	    if(this.geolocationList.length > 0)
+	    	zip.file(this.uuid + '.geoLocation.csv', this.arrayToCSV(this.geolocationList));
 
-		var zipFile = await zip.generateAsync({
-      base64: true,
-      compression: "DEFLATE",
-      type: "base64"
-		});
-		//.then(function(content) {
-		    // see FileSaver.js
-		    // saveAs(content, "data.zip");
-    var data = [];
-		data['answersAsMap[1996787].textAnswer'] = this.uuid;
-		data['answersAsMap[1996788].attachment.upload'] = zipFile;
+    var zipfile = await zip.generateAsync({ type: "blob" });
 
-    var headers = new Headers();
-    headers.append('Content-Type', 'application/x-www-form-urlencoded');
 
-		const httpOptions = {
-		  headers: new HttpHeaders({
-		    'Content-Type':  'application/x-www-form-urlencoded'
-		  })
-		};
+    const form = new cordova.plugin.http.ponyfills.FormData()
+    form.append('answersAsMap[1996787].textAnswer', this.uuid);
+    form.append('upload', zipfile, "data.zip");
+    this.httpNative.setDataSerializer("multipart");
+    var thisMethod: requestMethod = 'post';
+    var options = { method: thisMethod, data: form };
 
-    var query = '';
-    for (var key in data) {
-      query += '&' + encodeURIComponent(key) + '=' + encodeURIComponent(data[key]);
-    }
-    this.http.post('https://nettskjema.no/answer/deliver.json?formId=141510', query , httpOptions ).subscribe(
-	    (response) => console.log(response),
-	    (error) => console.log(error)
-			  )
-		//});
+    await this.httpNative.sendRequest('https://nettskjema.no/answer/deliver.json?formId=141510', options).then(
+        (response) => {
+			    console.log(response.status);
+			    console.log(JSON.parse(response.data)); // JSON data returned by server
+			    console.log(response.headers);
+        },
+        (err) => {
+			    console.error(err.status);
+			    console.error(err.error); // Error message as string
+			    console.error(err.headers);
+			});
 
 	}
 
