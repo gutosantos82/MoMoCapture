@@ -118,12 +118,12 @@ export class Tab2Page {
 
   checkDeviceMotion(event: DeviceMotionEvent) {
 		this.zone.run(() => {
-	    if(event.accelerationIncludingGravity.x) {
-		    this.hasAccelerometer = true;
-	  	}
-	  	if(event.rotationRate.alpha) {
-		    this.hasGyroscope = true;
-	  	}
+		    if(event.accelerationIncludingGravity.x) {
+			    this.hasAccelerometer = true;
+		  	}
+		  	if(event.rotationRate.alpha) {
+			    this.hasGyroscope = true;
+		  	}
 			if(this.hasDeviceMotion) {
 				window.removeEventListener("devicemotion", this.docEvtDevMotionAux, false);
 			}
@@ -270,7 +270,7 @@ export class Tab2Page {
     var thisMethod: requestMethod = 'post';
     var options = { method: thisMethod, data: form };
 
-    this.sessionData.httpRequest += new Date().toLocaleString() + "\n" + JSON.stringify(options);
+    this.sessionData.httpRequest += new Date().toLocaleString() + "\n" + JSON.stringify(options) + "\n";
 
     this.httpNative.sendRequest('https://nettskjema.no/answer/deliver.json?formId=141510', options).then(
         (response) => {
