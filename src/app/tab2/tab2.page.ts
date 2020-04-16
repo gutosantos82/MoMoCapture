@@ -8,6 +8,7 @@ import { HTTP } from '@ionic-native/http/ngx';
 import { Platform } from '@ionic/angular';
 import { UUID } from 'angular2-uuid';
 import { File, FileEntry } from '@ionic-native/file/ngx';
+import { SessionDataService } from '../providers/sessionData.service';
 
 import { Subscription } from "rxjs";
 import * as JSZip from "jszip";
@@ -15,7 +16,7 @@ import { saveAs } from 'file-saver';
 
 
 export interface GeneralInfoType {
-  interval: number;
+  timestamp: number;
   time: number;
 }
 
@@ -32,16 +33,16 @@ export interface RotationType {
 }
 
 export interface GeolocationType {
-	time: number;
-  lat: number;
-  long: number;
+  timestamp: number;
+  latitude: number;
+  longitude: number;
   accuracy: number;
 }
 
 export interface DeviceMotionType {
-	timestamp: number;
-	time: number;
-	x: number;
+  timestamp: number;
+  time: number;
+  x: number;
   y: number;
   z: number;
   alpha: number;
@@ -66,8 +67,8 @@ export class Tab2Page {
 	captureOn: boolean = false;
 	acc: AccelerationType = {x:0, y:0, z:0};
 	rot: RotationType = {alpha:0, beta:0, gamma:0};
-	general: GeneralInfoType = {interval:0, time:0};
-	geo: GeolocationType = {time:0, lat:0, long:0, accuracy:0};
+	general: GeneralInfoType = {time:0, timestamp:0};
+	geo: GeolocationType = {timestamp:0, latitude:0, longitude:0, accuracy:0};
 	readFrequency: number;
 	dateStart: Date;
 	countMotionReading: number;
@@ -78,7 +79,6 @@ export class Tab2Page {
 	hasGeolocation: boolean = false;
 	deviceMotionList: DeviceMotionType[] = [];
 	geolocationList: GeolocationType[] = [];
-	uuid: string;
 
   constructor(
   	private zone: NgZone,
@@ -88,7 +88,8 @@ export class Tab2Page {
   	private platform: Platform,
   	private http: HttpClient,
   	private httpNative: HTTP,
-  	private file: File
+  	private file: File,
+  	private sessionData: SessionDataService
   	) {  	
     let self = this;
     this.docEvtDevMotion = (event: DeviceMotionEvent)=>{
@@ -101,16 +102,6 @@ export class Tab2Page {
     if(_window.DeviceMotionEvent) {
     	this.hasDeviceMotion = true;
     }
-		if (this.platform.is('cordova')) {
-			this.nativeStorage.getItem('uuid')
-			  .then(
-			    data => this.uuid = data,
-			    error => console.error('Error retrieving item uuid', error)
-			  );
-		} else {
-			this.uuid = UUID.UUID();
-			//console.log(this.uuid);
-		}
   }
 
   ionViewDidEnter() {
@@ -148,8 +139,7 @@ export class Tab2Page {
 			this.countMotionReading++;
 	    this.readFrequency = parseFloat((1000 * this.countMotionReading / (timeDiff)).toFixed(4));
 
-	    this.general.interval = event.interval;
-	    this.general.time = parseFloat(event.timeStamp.toFixed(4));
+	    this.general.timestamp = parseFloat(event.timeStamp.toFixed(4));
 
 	    if(event.accelerationIncludingGravity.x) {
 		    this.acc.x = parseFloat(event.accelerationIncludingGravity.x.toFixed(4));
@@ -165,13 +155,13 @@ export class Tab2Page {
 
 	  	this.deviceMotionList.push({
 	  			timestamp: currentTime,
-	  			time: event.timeStamp,
-					x: event.accelerationIncludingGravity.x,
-				  y: event.accelerationIncludingGravity.y,
-				  z: event.accelerationIncludingGravity.z,
-				  alpha: event.rotationRate.alpha,
-				  beta: event.rotationRate.beta,
-				  gamma: event.rotationRate.gamma
+	  		    time: event.timeStamp,
+				x: event.accelerationIncludingGravity.x,
+				y: event.accelerationIncludingGravity.y,
+				z: event.accelerationIncludingGravity.z,
+				alpha: event.rotationRate.alpha,
+				beta: event.rotationRate.beta,
+				gamma: event.rotationRate.gamma
 	  	});
 
 		});
@@ -180,21 +170,18 @@ export class Tab2Page {
 
 	startCapture(e: any) {
 		if (this.platform.is('cordova')) {
-			this.backgroundMode.enable();
 			this.backgroundMode.setDefaults({
-				title : 'App is running', 
+				title : 'MusicLab app is running', 
 				text : 'Click here to turn it off',
-		    icon: 'icon',
-		    color: 'F14F4D', // hex format
-		    resume: true,
-		    hidden: false,
-		    bigText: true,
-		    // To run in background without notification
-		    silent: false
+			    icon: 'ic_launcher',
+			    color: 'F14F4D', // hex format
+			    resume: true,
+			    hidden: false,
+			    //bigText: true,
+			    // To run in background without notification
+			    silent: false
 			});
-			this.backgroundMode.on("activate").subscribe(() => {
-		 		this.backgroundMode.disableWebViewOptimizations(); 
-			});
+			this.backgroundMode.enable();
 		}
 	  this.captureOn = true;
 		this.dateStart = new Date();
@@ -211,11 +198,16 @@ export class Tab2Page {
 			 }
 			 //console.log(data);
 			 this.countGPSReading++;
-			 this.geo.lat = parseFloat(data.coords.latitude.toFixed(4));
-			 this.geo.long = parseFloat(data.coords.longitude.toFixed(4));
+			 this.geo.latitude = parseFloat(data.coords.latitude.toFixed(4));
+			 this.geo.longitude = parseFloat(data.coords.longitude.toFixed(4));
 			 this.geo.accuracy = data.coords.accuracy;
-			 this.geo.time = data.timestamp;
-			 this.geolocationList.push(this.geo);
+			 this.geo.timestamp = data.timestamp;
+			 this.geolocationList.push({
+				 timestamp: data.timestamp,
+				 latitude: data.coords.latitude,
+				 longitude: data.coords.longitude,
+				 accuracy: data.coords.accuracy
+			 });
 		}, 
 		(error: PositionError) => console.log(error));
 	 }
@@ -264,30 +256,34 @@ export class Tab2Page {
 
 	private async sendFileHttp(){
 	   var zip = new JSZip();
-	    zip.file(this.uuid + '.deviceMotion.csv', this.arrayToCSV(this.deviceMotionList));
+	    zip.file(this.sessionData.uuid + '.deviceMotion.csv', this.arrayToCSV(this.deviceMotionList));
 	    if(this.geolocationList.length > 0)
-	    	zip.file(this.uuid + '.geoLocation.csv', this.arrayToCSV(this.geolocationList));
+	    	zip.file(this.sessionData.uuid + '.geoLocation.csv', this.arrayToCSV(this.geolocationList));
 
     var zipfile = await zip.generateAsync({ type: "blob" });
 
 
     const form = new cordova.plugin.http.ponyfills.FormData()
-    form.append('answersAsMap[1996787].textAnswer', this.uuid);
-    form.append('upload', zipfile, "data.zip");
+    form.append('answersAsMap[1996787].textAnswer', this.sessionData.uuid);
+    form.append('answersAsMap[1996788].attachment.upload', zipfile, "data.zip");
     this.httpNative.setDataSerializer("multipart");
     var thisMethod: requestMethod = 'post';
     var options = { method: thisMethod, data: form };
 
-    await this.httpNative.sendRequest('https://nettskjema.no/answer/deliver.json?formId=141510', options).then(
+    this.sessionData.httpRequest += new Date().toLocaleString() + "\n" + JSON.stringify(options);
+
+    this.httpNative.sendRequest('https://nettskjema.no/answer/deliver.json?formId=141510', options).then(
         (response) => {
 			    console.log(response.status);
 			    console.log(JSON.parse(response.data)); // JSON data returned by server
 			    console.log(response.headers);
+			    this.sessionData.httpResponse += new Date().toLocaleString() + "\n" + response.status.toString() + "\n" + response.data  + "\n" ;
         },
         (err) => {
 			    console.error(err.status);
 			    console.error(err.error); // Error message as string
 			    console.error(err.headers);
+			    this.sessionData.httpResponse += new Date().toLocaleString() + "\n" + err.status + "\n" + err.error  + "\n" ;
 			});
 
 	}

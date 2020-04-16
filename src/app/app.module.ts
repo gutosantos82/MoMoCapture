@@ -10,6 +10,7 @@ import { StatusBar } from '@ionic-native/status-bar/ngx';
 
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
+import { SessionDataService } from './providers/sessionData.service';
 
 import { Geolocation } from '@ionic-native/geolocation/ngx';
 import { BackgroundMode } from '@ionic-native/background-mode/ngx';
@@ -31,6 +32,7 @@ import { File } from '@ionic-native/file/ngx';
     Geolocation,
     BackgroundMode,
     NativeStorage,
+    SessionDataService,
     File,
     HTTP,
     { provide: RouteReuseStrategy, useClass: IonicRouteStrategy }
